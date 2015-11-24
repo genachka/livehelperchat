@@ -105,13 +105,11 @@ class erLhcoreClassChatValidator {
             
         }
 
-        $validationFields['DepartamentID'] = new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'int',array('min_range' => 1));
+        $validationFields['DepartamentID'] = new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'int',array('min_range' => -1));
         $validationFields['DepartmentIDDefined'] = new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'int',array('min_range' => 1),FILTER_REQUIRE_ARRAY);
         $validationFields['operator'] = new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'int',array('min_range' => 1));
         $validationFields['user_timezone'] = new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'int');
         $validationFields['keyUpStarted'] = new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'int', array('min_range' => 1));
-        
-        
         
         $validationFields['name_items'] = new ezcInputFormDefinitionElement(
         		ezcInputFormDefinitionElement::OPTIONAL, 'unsafe_raw',
@@ -193,16 +191,16 @@ class erLhcoreClassChatValidator {
        
         if (erLhcoreClassModelChatConfig::fetch('session_captcha')->current_value == 1) {
         	if ( !$form->hasValidData( $nameField ) || $form->$nameField == '' || $form->$nameField < time()-600 || $hashCaptcha != sha1($_SERVER['REMOTE_ADDR'].$form->$nameField.erConfigClassLhConfig::getInstance()->getSetting( 'site', 'secrethash' ))){
-        		$Errors[] = erTranslationClassLhTranslation::getInstance()->getTranslation("chat/startchat","Your request was not processed as expected - but don't worry it was not your fault. Please re-submit your request. If you experience the same issue you will need to contact us via other means.");
+        		$Errors['captcha'] = erTranslationClassLhTranslation::getInstance()->getTranslation("chat/startchat","Your request was not processed as expected - but don't worry it was not your fault. Please re-submit your request. If you experience the same issue you will need to contact us via other means.");
         	}
         } else {
         	// Captcha validation
         	if ( !$form->hasValidData( $nameField ) || $form->$nameField == '' || $form->$nameField < time()-600 )
         	{
-        		$Errors[] = erTranslationClassLhTranslation::getInstance()->getTranslation("chat/startchat","Your request was not processed as expected - but don't worry it was not your fault. Please re-submit your request. If you experience the same issue you will need to contact us via other means.");
+        		$Errors['captcha'] = erTranslationClassLhTranslation::getInstance()->getTranslation("chat/startchat","Your request was not processed as expected - but don't worry it was not your fault. Please re-submit your request. If you experience the same issue you will need to contact us via other means.");
         	}
         }
-          
+        
         if (isset($validationFields['Username'])) {
 
             if ( !$form->hasValidData( 'Username' ) || ($form->Username == '' && (($start_data_fields['name_require_option'] == 'required' && !isset($additionalParams['offline'])) || (isset($additionalParams['offline']) && isset($start_data_fields['offline_name_require_option']) && $start_data_fields['offline_name_require_option'] == 'required' )))  )
@@ -315,8 +313,17 @@ class erLhcoreClassChatValidator {
         	$inputForm->departament_id_array = $form->DepartmentIDDefined;
         }
         
-        if ($form->hasValidData( 'DepartamentID' ) && erLhcoreClassModelDepartament::getCount(array('filter' => array('id' => $form->DepartamentID,'disabled' => 0))) > 0) {
-        	$chat->dep_id = $form->DepartamentID;
+        if ($form->hasValidData( 'DepartamentID' ) && erLhcoreClassModelDepartament::getCount(array('filter' => array('id' => $form->DepartamentID, 'disabled' => 0))) > 0) {
+        	$chat->dep_id = $form->DepartamentID;        	
+        } elseif ($form->hasValidData( 'DepartamentID' ) && $form->DepartamentID == -1) {            
+            $chat->dep_id == 0;
+            
+            if (isset($additionalParams['theme']) && $additionalParams['theme'] !== false && $additionalParams['theme']->department_title != '') {
+                $Errors['department'] = erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat','Please choose').' '.htmlspecialchars($additionalParams['theme']->department_title).'!';
+            } else {
+                $Errors['department'] = erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat','Please choose department!');
+            }
+            
         } elseif ($chat->dep_id == 0 || erLhcoreClassModelDepartament::getCount(array('filter' => array('id' => $chat->dep_id,'disabled' => 0))) == 0) {
             
             // Perhaps extension overrides default department?
